@@ -1,0 +1,51 @@
+version: "3"
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper:3.4.6
+    container_name: zookeeper
+    ports:
+      - 2181:2181
+  kafka:
+    image: wurstmeister/kafka:2.11-1.1.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_CREATE_TOPICS: sentiment-topic:1:1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    ports:
+      - 9092:9092
+ kafka-rest-proxy:
+    image: confluentinc/cp-kafka-rest:5.1.2
+    ports:
+      - "8082:8082"
+    environment:
+      KAFKA_REST_LISTENERS: http://kafka-rest-proxy:8082
+      KAFKA_REST_HOST_NAME: kafka-rest-proxy
+      KAFKA_REST_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_REST_consumer.request.timeout.ms: 30000
+    depends_on:
+      - zookeeper
+      - kafka
+  kafka-ui:
+    image: landoop/kafka-topics-ui
+    ports:
+      - "8000:8000"
+    environment:
+      KAFKA_REST_PROXY_URL: "http://kafka-rest-proxy:8082/"
+      RECORD_POLL_TIMEOUT: 30000
+      PROXY: "true"
+    depends_on:
+      - kafka
+      - kafka-rest-proxy
+  bot:
+    build: ./bot
+    container_name: sentiment-bot
+     env_file:
+      - .env
+    depends_on:
+      - zookeeper
+      - kafka
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
