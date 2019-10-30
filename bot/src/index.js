@@ -53,7 +53,7 @@ bot.on('message', ctx => {
     if (error) {
       logger.error('Sending payload failed:', error);
     } else {
-      logger.log('Sending payload result:', result);
+      logger.info('Sending payload result:', result);
     }
   });
 });
