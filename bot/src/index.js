@@ -16,7 +16,7 @@ kafkaProducer.on('error', error =>
   logger.error('Kafka producer error:', error)
 );
 
-const bot = new Telegraf('678975182:AAEwTaCfyYVHbF4_P1co7fsAqGwF0O0GEpI');
+const bot = new Telegraf(process.env.TELEGRAM_BOT_KEY);
 bot.use((ctx, next) => {
   if (ctx.updateType === 'message') {
     logger.info(
