@@ -16,7 +16,7 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
     ports:
       - 9092:9092
- kafka-rest-proxy:
+  kafka-rest-proxy:
     image: confluentinc/cp-kafka-rest:5.1.2
     ports:
       - "8082:8082"
@@ -42,7 +42,7 @@ services:
   bot:
     build: ./bot
     container_name: sentiment-bot
-     env_file:
+    env_file:
       - .env
     depends_on:
       - zookeeper
