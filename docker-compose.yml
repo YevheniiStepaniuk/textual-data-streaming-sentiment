@@ -10,10 +10,8 @@ services:
     container_name: kafka
     depends_on:
       - zookeeper
-    environment:
-      KAFKA_ADVERTISED_HOST_NAME: kafka
-      KAFKA_CREATE_TOPICS: sentiment-topic:1:1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    env_file:
+      - .env
     ports:
       - 9092:9092
   kafka-rest-proxy:
@@ -48,5 +46,29 @@ services:
     depends_on:
       - zookeeper
       - kafka
+
+  spark-master:
+    image: bde2020/spark-master
+    container_name: spark-master
+    ports:
+      - 8080:8080
+      - 7077:7077
+    env_file:
+      - .env
+  spark-worker:
+    image: bde2020/spark-worker
+    depends_on:
+      - spark-master
     environment:
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      - SPARK_MASTER=spark://spark-master:7077
+    ports:
+      - 8081:8081
+    env_file:
+      - .env
+  spark-app: 
+    build:
+      context: ./app
+    env_file:
+      - .env
+    links:
+      - spark-master:spark-master
