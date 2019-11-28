@@ -14,4 +14,6 @@ COPY package.json .
 
 RUN npm i
 
-COPY ./src /src/
+COPY ./src /app/src/
+
+RUN ls -l

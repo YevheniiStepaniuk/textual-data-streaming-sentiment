@@ -65,10 +65,33 @@ services:
       - 8081:8081
     env_file:
       - .env
-  spark-app: 
+  spark-app:
     build:
       context: ./app
     env_file:
       - .env
     links:
       - spark-master:spark-master
+  spark-model-build:
+    build:
+      context: ./model
+    env_file:
+      - .model-env
+    volumes:
+      - ./model:/app/
+    links:
+      - spark-master:spark-master
+
+  elasticsearch:
+    build:
+      context: ./elastic
+    command: elasticsearch -Des.network.host=0.0.0.0
+    ports:
+      - 9200:9200
+      - 9300:9300
+  kibana:
+    image: kibana:4.3.1
+    ports:
+      - 5601:5601
+    links:
+      - elasticsearch
