@@ -78,7 +78,7 @@ services:
     env_file:
       - .model-env
     volumes:
-      - ./model:/app/
+      - ./model:/app/model
     links:
       - spark-master:spark-master
 

@@ -30,7 +30,7 @@ object UaTweetsSentiment {
     val sc = new SparkContext(conf)
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
-    val tweetDF = sqlContext.read.json("src/main/resources/dobre-vs-pogano/aggregate-new-structure.json")
+    val tweetDF = sqlContext.read.json("src/main/resources/dataset.json")
 
     val messages = tweetDF.select("message", "isPositive")
     println("Total messages: " + messages.count())
