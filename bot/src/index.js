@@ -33,7 +33,7 @@ bot.on('message', ctx => {
 
   const payload = [
     {
-      topic: process.env.KAFKA_CREATE_TOPICS,
+      topic: process.env.KAFKA_TOPIC,
       messages: JSON.stringify({
         message: text,
         user_full_name: `${first_name} ${last_name}`,

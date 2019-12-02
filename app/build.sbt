@@ -19,7 +19,7 @@ resolvers += "cloudera-repos" at "https://repository.cloudera.com/artifactory/cl
 resolvers += "Akka Repository" at "http://repo.akka.io/releases/"
 
 
-mainClass in assembly := Some("com.yevhenii.")
+mainClass in assembly := Some("com.yevhenii")
 
 
 assemblyMergeStrategy in assembly := {

@@ -14,29 +14,29 @@ services:
       - .env
     ports:
       - 9092:9092
-  kafka-rest-proxy:
-    image: confluentinc/cp-kafka-rest:5.1.2
-    ports:
-      - "8082:8082"
-    environment:
-      KAFKA_REST_LISTENERS: http://kafka-rest-proxy:8082
-      KAFKA_REST_HOST_NAME: kafka-rest-proxy
-      KAFKA_REST_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_REST_consumer.request.timeout.ms: 30000
-    depends_on:
-      - zookeeper
-      - kafka
-  kafka-ui:
-    image: landoop/kafka-topics-ui
-    ports:
-      - "8000:8000"
-    environment:
-      KAFKA_REST_PROXY_URL: "http://kafka-rest-proxy:8082/"
-      RECORD_POLL_TIMEOUT: 30000
-      PROXY: "true"
-    depends_on:
-      - kafka
-      - kafka-rest-proxy
+  # kafka-rest-proxy:
+  #   image: confluentinc/cp-kafka-rest:5.1.2
+  #   ports:
+  #     - "8082:8082"
+  #   environment:
+  #     KAFKA_REST_LISTENERS: http://kafka-rest-proxy:8082
+  #     KAFKA_REST_HOST_NAME: kafka-rest-proxy
+  #     KAFKA_REST_BOOTSTRAP_SERVERS: kafka:9092
+  #     KAFKA_REST_consumer.request.timeout.ms: 30000
+  #   depends_on:
+  #     - zookeeper
+  #     - kafka
+  # kafka-ui:
+  #   image: landoop/kafka-topics-ui
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     KAFKA_REST_PROXY_URL: "http://kafka-rest-proxy:8082/"
+  #     RECORD_POLL_TIMEOUT: 30000
+  #     PROXY: "true"
+  #   depends_on:
+  #     - kafka
+  #     - kafka-rest-proxy
   bot:
     build: ./bot
     container_name: sentiment-bot
@@ -54,7 +54,7 @@ services:
       - 8080:8080
       - 7077:7077
     env_file:
-      - .env
+      - ./.env
   spark-worker:
     image: bde2020/spark-worker
     depends_on:
@@ -64,34 +64,25 @@ services:
     ports:
       - 8081:8081
     env_file:
-      - .env
+      - ./.env
   spark-app:
     build:
       context: ./app
     env_file:
-      - .env
-    links:
-      - spark-master:spark-master
-  spark-model-build:
-    build:
-      context: ./model
-    env_file:
-      - .model-env
-    volumes:
-      - ./model:/app/model
+      - ./.env
     links:
       - spark-master:spark-master
 
-  elasticsearch:
-    build:
-      context: ./elastic
-    command: elasticsearch -Des.network.host=0.0.0.0
-    ports:
-      - 9200:9200
-      - 9300:9300
-  kibana:
-    image: kibana:4.3.1
-    ports:
-      - 5601:5601
-    links:
-      - elasticsearch
+  # elasticsearch:
+  #   build:
+  #     context: ./elastic
+  #   command: elasticsearch -Des.network.host=0.0.0.0
+  #   ports:
+  #     - 9200:9200
+  #     - 9300:9300
+  # kibana:
+  #   image: kibana:4.3.1
+  #   ports:
+  #     - 5601:5601
+  #   links:
+  #     - elasticsearch
