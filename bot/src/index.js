@@ -1,8 +1,11 @@
 const Telegraf = require('telegraf');
 const kafka = require('kafka-node');
 const createLogger = require('./logger');
+const uuidv1 = require('uuid/v1');
 
 const logger = createLogger();
+
+logger.info('Telegram bot is running .... Please stay on line');
 
 const kafkaClientOptions = { sessionTimeout: 100, spinDelay: 100, retries: 2 };
 const kafkaClient = new kafka.Client(
@@ -29,20 +32,33 @@ bot.use((ctx, next) => {
 
 bot.on('message', ctx => {
   const { chat, message } = ctx;
-  const { first_name, last_name, username, text, date } = message;
+  const { text, date } = message;
+  const { first_name, last_name, username } = message.from;
+
+  let { title, chat_name } = chat;
+
+  const userFullName = `${first_name} ${last_name}`;
+  title = title || userFullName;
+  chat_name = chat_name || username;
+
+  logger.info('New message, working...');
+  logger.info(JSON.stringify(message));
 
   const payload = [
     {
       topic: process.env.KAFKA_TOPIC,
-      messages: JSON.stringify({
-        message: text,
-        user_full_name: `${first_name} ${last_name}`,
-        from_username: username,
-        date: date.username,
-        chat_title: chat.title,
-        chat_name: chat,
-        chat_id: chat.id
-      }),
+      key: uuidv1(),
+      messages: [
+        JSON.stringify({
+          message: text,
+          user_full_name: userFullName,
+          from_username: username,
+          date: date,
+          chat_title: title,
+          chat_name: chat_name,
+          chat_id: chat.id
+        })
+      ],
       attributes: 1
     }
   ];
