@@ -26,6 +26,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
+import org.apache.spark.mllib.linalg.Vector
 
 object Application {
   val positiveLabelWord = "добре"
@@ -73,7 +74,18 @@ object Application {
       .cast("string"), schema)
       .as("data"))
       .select("data.*")
-      .map(row => Message(row.getString(0), row.getString(1), row.getString(2), row.getString(3), row.getString(4), row.getString(5), row.getString(6), detectLanguage(row.getString(0)), ""))
+      .map(row => Message(
+        row.getString(0), 
+        row.getString(1), 
+        row.getString(2), 
+        row.getString(3), 
+        row.getString(4), 
+        row.getString(5), 
+        row.getString(6), 
+        detectLanguage(row.getString(0)), 
+        model.predict(
+          Vectors.dense(row.getString(0).split(" ").map(_.toDouble)) ))
+      )
 
       df.writeStream
       .format("console")
@@ -82,7 +94,7 @@ object Application {
       .awaitTermination()
   }
 
-  def train(conf: SparkConf){
+  def train(conf: SparkConf): GradientBoostedTreesModel ={
     
     val startTime = System.nanoTime()
 
