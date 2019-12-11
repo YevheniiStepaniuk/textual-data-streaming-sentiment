@@ -1,39 +1,37 @@
 package com.yevhenii
 
 import java.time.format.DateTimeFormatter
-import com.cybozu.labs.langdetect.DetectorFactory
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
-import scala.util.Properties
 
+import com.cybozu.labs.langdetect.DetectorFactory
+import org.apache.spark.{SparkConf, SparkContext, mllib}
+import org.apache.spark.sql.SparkSession
+
+import scala.util.Properties
 import org.apache.spark.sql._
 import org.apache.spark.sql.types._
-
 import org.apache.spark.ml.classification.GBTClassifier
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{from_json, split, col}
+import org.apache.spark.sql.functions.{col, from_json, split}
 import org.apache.log4j.{Level, Logger}
-
 import org.apache.spark.mllib.feature.HashingTF
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.tree.GradientBoostedTrees
 import org.apache.spark.mllib.tree.configuration.BoostingStrategy
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-import scala.util.Try
-import org.apache.spark.SparkContext
-import org.apache.spark.sql.Row
-import org.apache.spark.{SparkConf, SparkContext}
 
+import scala.util.Try
+import org.apache.spark.ml.linalg
+import org.apache.spark.sql.Row
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
-import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.ml.linalg.Vectors
 
 object Application {
   val positiveLabelWord = "добре"
   val negativeFirstLabelWord = "погано"
   val negativeSecondLabelWord = "поганий"
 
-  val hashingTF = new HashingTF(2000)
+  val hashingTF: HashingTF = new HashingTF(2000)
 
   
   def main(args: Array[String]): Unit ={
@@ -47,10 +45,9 @@ object Application {
     conf.setAppName(appName).setMaster("local")
       .set("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10:2.4.0").set("spark.driver.allowMultipleContexts", "true")
 
-      val model = train(conf)
+    val model: GradientBoostedTreesModel = train(conf)
 
-    val spark = SparkSession.builder.config(conf).getOrCreate();
-
+    val spark: SparkSession = SparkSession.builder.config(conf).getOrCreate();
     import spark.implicits._
 
     DetectorFactory.loadProfile("src/main/resources/profiles")
@@ -74,26 +71,30 @@ object Application {
       .cast("string"), schema)
       .as("data"))
       .select("data.*")
-      .map(row => Message(
-        row.getString(0), 
-        row.getString(1), 
-        row.getString(2), 
-        row.getString(3), 
-        row.getString(4), 
-        row.getString(5), 
-        row.getString(6), 
-        detectLanguage(row.getString(0)), 
-        model.predict(
-          Vectors.dense(row.getString(0).split(" ").map(_.toDouble)) ))
-      )
+      .map { row =>
+        Message(
+          row.getString(0),
+          row.getString(1),
+          row.getString(2),
+          row.getString(3),
+          row.getString(4),
+          row.getString(5),
+          row.getString(6),
+          detectLanguage(row.getString(0)),
+          model.predict(convertToVector(row.getString(0))))
+      }
 
-      df.writeStream
+
+    df.writeStream
       .format("console")
       .outputMode("append")
       .start()
       .awaitTermination()
   }
 
+  def convertToVector(str: String): mllib.linalg.Vector = {
+    return org.apache.spark.mllib.linalg.Vectors.dense(str.split(" ").map(s => s.toDouble))
+  }
   def train(conf: SparkConf): GradientBoostedTreesModel ={
     
     val startTime = System.nanoTime()
@@ -277,4 +278,4 @@ object Application {
   }
 }
 
-case class Message(text: String, user_full_name: String, from_username: String, date: String, chat_title: String,chat_name: String, chat_id: String, lang: String, sentiment: String)
+case class Message(text: String, user_full_name: String, from_username: String, date: String, chat_title: String,chat_name: String, chat_id: String, lang: String, sentiment: Double)
