@@ -25,6 +25,11 @@ import org.apache.spark.sql.Row
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.apache.spark.ml.linalg.Vectors
+import org.elasticsearch.spark.sql._
+import org.elasticsearch.spark._
+import org.elasticsearch.hadoop.cfg.ConfigurationOptions
+
+import scala.reflect.macros.whitebox
 
 object Application {
   val positiveLabelWord = "добре"
@@ -33,43 +38,39 @@ object Application {
 
   val hashingTF: HashingTF = new HashingTF(2000)
 
-  
   def main(args: Array[String]): Unit ={
     Logger.getLogger("org").setLevel(Level.ERROR)
 
-    val kafkaAddress = Properties.envOrElse("KAFKA_ADDRESS", "")
-    val kafkaTopic = Properties.envOrElse("KAFKA_TOPIC", "")
-
-    val appName = "HDFSData"
+    val appName = "Application"
     val conf = new SparkConf()
     conf.setAppName(appName).setMaster("local")
-      .set("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10:2.4.0").set("spark.driver.allowMultipleContexts", "true")
+    .set("spark.driver.allowMultipleContexts", "true")
 
     val model: GradientBoostedTreesModel = train(conf)
 
     val spark: SparkSession = SparkSession.builder.config(conf).getOrCreate();
     import spark.implicits._
 
-    DetectorFactory.loadProfile("src/main/resources/profiles")
+    val tweetDF: DataFrame = spark.read.json("src/main/resources/dataset/dataset.json")
+
+    tweetDF.
 
     val schema = new StructType()
-    .add("message",StringType)
-    .add("user_full_name",StringType)
-    .add("from_username",StringType)
-    .add("date",StringType)
-    .add("chat_title",StringType)
-    .add("chat_name",StringType)
-    .add("chat_id",StringType)
+      .add("message",StringType)
+      .add("user_full_name",StringType)
+      .add("from_username",StringType)
+      .add("date",StringType)
+      .add("chat_title",StringType)
+      .add("chat_name",StringType)
+      .add("chat_id",StringType)
 
     val df = spark
       .readStream
       .format("kafka")
-      .option("kafka.bootstrap.servers", kafkaAddress)
-      .option("subscribe", kafkaTopic)
       .load()
       .select(from_json(col("value")
-      .cast("string"), schema)
-      .as("data"))
+        .cast("string"), schema)
+        .as("data"))
       .select("data.*")
       .map { row =>
         Message(
@@ -80,10 +81,8 @@ object Application {
           row.getString(4),
           row.getString(5),
           row.getString(6),
-          detectLanguage(row.getString(0)),
-          model.predict(convertToVector(row.getString(0))))
+          model.predict(toLabeled(row.getString(0)).features))
       }
-
 
     df.writeStream
       .format("console")
@@ -96,14 +95,14 @@ object Application {
     return org.apache.spark.mllib.linalg.Vectors.dense(str.split(" ").map(s => s.toDouble))
   }
   def train(conf: SparkConf): GradientBoostedTreesModel ={
-    
+
     val startTime = System.nanoTime()
 
-  
+
     val sc = new SparkContext(conf)
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
-    val tweetDF = sqlContext.read.json("src/main/resources/dataset/dataset.json")
+    val tweetDF: DataFrame = sqlContext.read.json("src/main/resources/dataset/dataset.json")
 
     val messages = tweetDF.select("message", "isPositive")
     println("Total messages: " + messages.count())
@@ -231,13 +230,15 @@ object Application {
     return model
   }
 
-  def detectLanguage(text: String) : String = {
-    Try {
-      val detector = DetectorFactory.create()
-      detector.append(text)
-      detector.detect()
-    }.getOrElse("unknown")
+  def toLabeled(msg: String): LabeledPoint = {
+    val messageSanitized = msg.toLowerCase().replaceAll(positiveLabelWord, "")
+      .replaceAll(negativeFirstLabelWord, "")
+      .replaceAll(negativeSecondLabelWord, "")
 
+    val msgSeq = (1, messageSanitized.split(" ").toSeq)
+    val t = (msgSeq._1, hashingTF.transform(msgSeq._2))
+
+    return new LabeledPoint(msgSeq._1.toDouble, hashingTF.transform(msgSeq._2))
   }
 
   def getLabeledTweets(messagesRDD: RDD[Row]): RDD[(Int, Seq[String])] ={
@@ -278,4 +279,4 @@ object Application {
   }
 }
 
-case class Message(text: String, user_full_name: String, from_username: String, date: String, chat_title: String,chat_name: String, chat_id: String, lang: String, sentiment: Double)
+case class Message(Id: String, Title: String, Body: String, Summary20: String, Cosine20: String,Summary40: String, Cosine40: String, sentiment: Double)
