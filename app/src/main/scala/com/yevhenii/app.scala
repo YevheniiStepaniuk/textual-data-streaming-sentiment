@@ -42,18 +42,19 @@ object Application {
     Logger.getLogger("org").setLevel(Level.ERROR)
 
     val appName = "Application"
+    val kafkaAddress = Properties.envOrElse("KAFKA_ADDRESS", "")
+    val kafkaTopic = Properties.envOrElse("KAFKA_TOPIC", "")
+
     val conf = new SparkConf()
     conf.setAppName(appName).setMaster("local")
+    .set("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10:2.4.0")
     .set("spark.driver.allowMultipleContexts", "true")
 
     val model: GradientBoostedTreesModel = train(conf)
+    DetectorFactory.loadProfile("src/main/resources/profiles")
 
     val spark: SparkSession = SparkSession.builder.config(conf).getOrCreate();
     import spark.implicits._
-
-    val tweetDF: DataFrame = spark.read.json("src/main/resources/dataset/dataset.json")
-
-    tweetDF.
 
     val schema = new StructType()
       .add("message",StringType)
@@ -67,6 +68,8 @@ object Application {
     val df = spark
       .readStream
       .format("kafka")
+      .option("kafka.bootstrap.servers", kafkaAddress)
+      .option("subscribe", kafkaTopic)
       .load()
       .select(from_json(col("value")
         .cast("string"), schema)
@@ -81,6 +84,7 @@ object Application {
           row.getString(4),
           row.getString(5),
           row.getString(6),
+          detectLanguage(row.getString(0)),
           model.predict(toLabeled(row.getString(0)).features))
       }
 
@@ -230,6 +234,14 @@ object Application {
     return model
   }
 
+    def detectLanguage(text: String) : String = {
+      Try {
+        val detector = DetectorFactory.create()
+        detector.append(text)
+        detector.detect()
+      }.getOrElse("unknown")
+    }
+
   def toLabeled(msg: String): LabeledPoint = {
     val messageSanitized = msg.toLowerCase().replaceAll(positiveLabelWord, "")
       .replaceAll(negativeFirstLabelWord, "")
@@ -279,4 +291,4 @@ object Application {
   }
 }
 
-case class Message(Id: String, Title: String, Body: String, Summary20: String, Cosine20: String,Summary40: String, Cosine40: String, sentiment: Double)
+case class Message(text: String, user_full_name: String, from_username: String, date: String, chat_title: String,chat_name: String, chat_id: String, lang: String, sentiment: Double)

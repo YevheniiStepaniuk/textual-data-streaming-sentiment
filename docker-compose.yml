@@ -40,7 +40,7 @@ services:
   bot:
     build: ./bot
     container_name: sentiment-bot
-    command: sh -c "dockerize -wait tcp://zookeeper:2181 -wait tcp://kafka:9092 npm start"
+    command: sh -c "dockerize -wait tcp://zookeeper:2181 -wait tcp://kafka:9092 -timeout 30s npm start"
     env_file:
       - .env
     depends_on:
